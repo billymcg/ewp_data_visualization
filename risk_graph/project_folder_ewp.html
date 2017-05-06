@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <title>EWP Forecasts</title>
+        <script type="text/javascript" src="d3.v3.min.js"></script>
+    </head>
+    <body id="body1">
+        <script type="text/javascript">
+
+            // Data logger
+        	d3.csv("raw_data.csv", function(data) {
+    			//console.log(data);
+                
+                //Dictionary to hold timeseries data by country
+                var countryDict = {};
+
+                var dataLength = data.length;
+                for (var i = 0; i < dataLength; i++) {
+                    for (prop in data[i]) {
+                        //Converts the variables that are quantitative to numbers
+                        if (prop != "sftgcode" && prop != "country" && data[i][prop] != "NA") {
+                            data[i][prop] = Number(data[i][prop]);
+                        }
+                    }
+
+                    /*Stores each country's timeseries data in a dictionary with year as the key 
+                    and places it in the dictionary with country name as the key*/
+                    if (i == 0 || data[i].sftgcode != data[i-1].sftgcode) {
+                        countryDict[data[i].country] = {};
+                    }
+                    
+                    if (countryDict[data[i].country] != null) {
+                        countryDict[data[i].country][data[i].year] = data[i];
+                    }
+                }
+
+                console.log(countryDict);
+
+			});
+        </script>
+    </body>
+</html>

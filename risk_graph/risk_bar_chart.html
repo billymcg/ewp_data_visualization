@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <title>Risk Bar Chart</title>
+        <script src="project_folder_d3.v4.min.js"></script>
+        <!--<script src="https://d3js.org/d3.v4.min.js"></script>-->
+    </head>
+    <body>
+        <script type="text/javascript">
+
+            //TODO
+            // 0. Filter for only 25 first countries
+            // 0.5. adding other countries / button
+            // 1. Make graph interactive
+            // 2. Change font and overall layout (EWP website settings?)
+            // 2.5. Making text appear only when moused over or clicked on?
+            // 3. Add dotted line increments to split graph
+            // 4. Add fill (possibly by user selection?)
+            // 5. Button for filtering by region
+            // 6. Defaulting graph to have first bar clicked
+
+            //variable for .csv forecasting data file name
+            var forecasting_data = "project_folder_cjh12sep2016.csv";
+
+            var countryDict = {};
+
+            d3.csv("project_folder_raw_data.csv", function(data) {
+                //console.log(data);
+                                
+                //Dictionary to hold timeseries data by country
+
+                var dataLength = data.length;
+                for (var i = 0; i < dataLength; i++) {
+                    for (prop in data[i]) {
+                    //Converts the variables that are quantitative to numbers
+                        if (prop != "sftgcode" && prop != "country" && data[i][prop] != "NA") {
+                            data[i][prop] = Number(data[i][prop]);
+                        }
+                    }
+
+                    /*Stores each country's timeseries data in a dictionary with year as the key 
+                    and places it in the dictionary with country name as the key*/
+                    if (i == 0 || data[i].sftgcode != data[i-1].sftgcode) {
+                        countryDict[data[i].sftgcode] = {};
+                    }
+                                    
+                    if (countryDict[data[i].sftgcode] != null) {
+                        countryDict[data[i].sftgcode][data[i].year] = data[i];
+                    }
+                }
+
+                                
+            });
+
+            //loading forecasting data
+            d3.csv(forecasting_data, function(data) {
+
+                //array for holding data from "data"
+                var forecast = [];
+
+                //variable for number of times to loop through "data" (i.e., number of countries)
+                var numCountries = 25;
+
+                for (var i = 0; i < numCountries; i++) {
+                    forecast.push(data[i])
+                }
+
+//                forecast = data;
+
+                //width and height of SVG for bar
+                var margin = {top: 20, right: 20, bottom: 30, left: 150};
+                var right_padding = 300;
+                var width = 650 - margin.left - margin.right + right_padding;
+                var height = 650 - margin.top - margin.bottom;
+
+                //padding for bar
+                var barPadding = 0.1;
+
+                //scales for bar chart
+                var yScale = d3.scaleBand()
+                    .range([0, height])
+                    .padding(barPadding);
+
+                var xScale = d3.scaleLinear()
+                    .range([0, width - right_padding]);
+
+                //create SVG element for bars
+                var svg = d3.select("body")
+                    .append("svg")
+                    .attr("width", width + margin.left + margin.right)
+                    .attr("height", height + margin.top + margin.bottom)
+                    .append("g")
+                    .attr("transform",
+                        "translate(" + margin.left + "," + margin.top + ")");
+
+                //scale range of data in the domain
+                yScale.domain(forecast.map( function (d){ return d.country; }));
+                xScale.domain([0, d3.max(forecast, function(d) { return d.mean_p; })]);
+
+                //x tooltip position
+                var tooltip_x = xScale(d3.max(forecast, function(d) { return d.mean_p; }));
+
+                //create bars for SVG element
+                for (var b = 0; b < numCountries; b++) {
+                    svg.append("rect")
+                        .attr("id", forecast[b].sftgcode)
+    //                    .attr("x", 0)
+                        .attr("width", function(d) {
+                            return xScale(forecast[b].mean_p);
+                        })
+                        .attr("y", function(d) {
+                            return yScale(forecast[b].country);
+                        })
+                        .attr("height", yScale.bandwidth());
+                }
+
+                //interactive elements for bars
+                for (var i = 0; i < numCountries; i++) {
+                    //console.log(forecast[i].country)
+                    svg.select("#" + forecast[i].sftgcode)
+                        .on("mouseover", function() {
+
+                            var tool = {x: tooltip_x, y: this.y.animVal.value};
+                            /*var tool = {x: tooltip_x, y: this.y.animVal.value};
+
+                            for (var i = 0; i < numCountries; i++) {
+                                var newY = yScale.bandwidth()*i;
+                                svg.append("rect")
+                                    .attr("id", "vargraph" + i)
+                                    .attr("width", function(d) {
+                                        return xScale(forecast[i].mean_p);
+                                    })
+                                    .attr("height", yScale.bandwidth())
+                                    .attr("fill", "blue")
+                                    .attr("transform", function() {
+                                        return "translate(" + tool.x + "," + newY + ")";
+                                    });
+                            }*/
+
+    //                                "translate(" + tool.x + "," + tool.y + ")")
+
+                            d3.select(this)
+                            .attr("fill", "orange");
+                            
+
+                            var currCountry = d3.select(this).attr("id");
+
+                            console.log(countryDict[currCountry][2014]);
+
+                            for (var h = 0; h < numCountries; h++)
+                                svg.append("rect")
+                                .attr("width", function(d) {
+                                    return xScale(countryDict[currCountry][2014].yrdiedPER);
+                                })
+                                .attr("height", yScale.bandwidth()-5)
+                                .attr("x", tooltip_x+5)
+                                .attr("y", yScale.bandwidth()*h+5)
+                                .attr("fill", "red");
+
+                            /*svg.append("text")
+                                .text(d3.select(this).attr("id"))
+                                .attr("font-family", "sans-serif")
+                                .attr("font-size", "20px")
+                                .attr("fill", "red")
+                                .attr("text-anchor", "middle")
+                                .attr("x", 600)
+                                .attr("y", tool.y)*/
+
+                        })
+                        .on("mouseout", function() {
+
+                            /*for (var j = 0; j < numCountries; j++) {
+                                svg.select("#" + j)
+                                    .remove();
+                            }*/
+
+                            d3.select(this)
+                                .transition()
+                                .duration(250)
+                                .attr("fill", "black");
+                        });
+                }
+                    
+
+                //add text to bars based on length
+                svg.selectAll("text")
+                    .data(forecast)
+                    .enter()
+                    .append("text")
+                    .text(function(d) {
+                        return d3.format(".1%")(d.mean_p);
+                    })
+                    .attr("text-anchor", "middle")
+                    .attr("x", function(d) {
+                        return xScale(d.mean_p) - 18;
+                    })
+                    .attr("y", function(d) {
+                        return yScale(d.country) + yScale.bandwidth() / 2 + 4
+                    })
+                    .attr("font-family", "sans-serif")
+                    .attr("font-size", "11px")
+                    .attr("fill", "red");
+
+                //add the x Axis
+                svg.append("g")
+                    .attr("transform", "translate(0," + height + ")")
+                    .call(d3.axisBottom(xScale));
+
+                //add the y Axis
+                svg.append("g")
+                    .call(d3.axisLeft(yScale));
+
+            });
+
+
+        </script>
+    </body>
+</html>

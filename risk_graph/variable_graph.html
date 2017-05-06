@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link href='http://fonts.googleapis.com/css?family=Karla|Quantico|Audiowide' rel='stylesheet' type='text/css'>
+<meta charset="utf-8">
+<style>
+
+    .barText {
+        font-family: "Karla";
+        font-size: 13px;
+        font-weight: bold;
+        fill: white;
+    }
+
+    .barLabel {
+        font-family: "Karla";
+        font-size: 13px;
+        font-weight: bold;
+        fill: rgb(0, 0, 0);
+    }
+
+    .tooltipText {
+        fill: white;
+        font-family: "Karla";
+    }
+
+    .alphaBar {
+        opacity: 0.2;
+    }
+
+    .axis{
+        font-family: "Karla";
+    }
+
+</style>
+<title>Variable Display</title>
+<script src="d3.v4.min.js"></script>
+<script src="jquery.js"></script>
+<!--<script src="https://d3js.org/d3.v4.min.js"></script>-->
+</head>
+<body>
+<p id="country" value="blank"></p>
+<script type="text/javascript">
+    
+
+    //loading data
+var dictionary_data = "cjh12sep2016.csv";
+var description_data = "description_data.csv";
+
+d3.queue()
+    .defer(d3.csv, dictionary_data)
+    .defer(d3.csv, description_data)
+    .await(function(error, dictionary_data, description_data) {
+
+        if (error) {
+            console.error(error);
+        }
+
+        else {
+
+            //creating country dictionary
+            var countryDict = {};
+            var dataLength = dictionary_data.length;
+            var varData = [];
+            var varName = [];
+            var varVals = [];
+            var valName = [];
+
+            for (var i = 0; i < dataLength; i++) {
+                var newCountry = new Object();
+
+                for (prop in dictionary_data[i]) {
+                    //Converts the variables that are quantitative to numbers
+                    var newProp = prop.replace(/\./g, "_");
+                    //console.log(newProp);
+
+                    newCountry[newProp] = dictionary_data[i][prop];
+
+                    if (prop !== "sftgcode" && prop !== "country") {
+                        newCountry[newProp] = Number(newCountry[newProp]);
+                    }
+                    else {
+                        delete newCountry[newProp];
+                    }
+                    //console.log(newProp + " " + dictionary_data[i].newProp);
+                }
+
+                /*Stores each country's timeseries data in a dictionary with year as the key
+                 and places it in the dictionary with country name as the key*/
+                if (i === 0 || dictionary_data[i].sftgcode !== dictionary_data[i-1].sftgcode) {
+                    countryDict[dictionary_data[i].country] = newCountry;
+                }
+
+            }
+            //console.log(dictionary_data);
+            //console.log(description_data);
+
+            //console.log(currcountryHolder[0]);
+            //console.log(countryDict[currcountryHolder[0]]);
+
+
+        var countryChosen = document.getElementById('country');
+        var currcountry;
+
+        var truncateDecimals = function (number, digits) {
+            var multiplier = Math.pow(10, digits),
+                adjustedNum = number * multiplier,
+                truncatedNum = Math[adjustedNum < 0 ? 'ceil' : 'floor'](adjustedNum);
+
+            return truncatedNum / multiplier;
+        };
+
+        setInterval(function () {
+            if (countryChosen.value !== 'superValue') {
+                countryChosen.value = 'superValue';
+                //console.log(localStorage['superValue']);
+                currcountry = localStorage['superValue'];
+                console.log(currcountry);
+                countryChosen.append(localStorage['superValue']);
+
+                
+                for (mod in countryDict[currcountry]) {
+                    if (mod.slice(0, 3) != "reg" && mod.slice(0, 6) != "postcw") {
+                        if (mod.slice(mod.length-3,mod.length) == "PER") {
+                            varData.push(truncateDecimals(countryDict[currcountry][mod]*100, 1));
+                            varName.push(mod);
+                        }
+                        else if (mod != "forecast_year" && mod != "year" && mod != "date") {
+                            varVals.push(countryDict[currcountry][mod]);
+                            valName.push(mod);
+                        }
+                    }
+                }
+                //console.log(varVals);
+                //console.log(valName);
+                //console.log(varName);
+
+                //SVG dimensions
+                var right_padding = 300,
+                    margin = {top: 20, right: 20, bottom: 30, left: 150},
+                    width = 650 - margin.left - margin.right + right_padding,
+                    height = 650 - margin.top - margin.bottom;
+
+                //create SVG element for bars
+                var svg = d3.select("body")
+                    .append("svg")
+                    .attr("width", width + margin.left + margin.right)
+                    .attr("height", height + margin.top + margin.bottom)
+                    .append("g")
+                    .attr("transform",
+                        "translate(" + margin.left + "," + margin.top + ")");
+
+                //bar attributes
+                var bar = {padding: 0.1,
+                    color: {unfilled: "#0d2a52", filled: "#FA4C00"}};
+
+                //scales for bar chart
+                var yScale = d3.scaleBand()
+                    .range([0, height])
+                    .padding(bar.padding);
+
+                var xScale = d3.scaleLinear()
+                    .range([0, width - right_padding]);
+
+                //scale range of data in the domain
+                yScale.domain(varName.map( function (d){ return d; }));
+                xScale.domain([0, 100]);                
+
+                //console.log(varData);
+
+                //svg.append("rect").attr("x", 100).attr("y", 100).attr("width", 100).attr("height", 100).attr("fill", bar.color.unfilled);
+
+                var scaleLen = varData.length;
+                var barSize = 650 / scaleLen;
+                barSize -= 2;
+
+                /*for (var x = 0; x < varData.length; x++) {
+                            //console.log(varData.length);
+                            //svg.append("rect").attr("x", 50 + x).attr("y", 100).attr("width", 100).attr("height", 100).attr("fill", bar.color.unfilled);
+                    svg.append("rect")
+                        .attr("x", 40);
+                        .attr("y", scaleLen * x)
+                        .attr("height", barSize)
+                        .attr("width", varData[x]*500)
+                        .attr("fill", bar.color.unfilled);
+
+                    svg.append("text")
+                        .attr("y", scaleLen * x)
+                        .attr("")
+                }*/
+
+                var step = d3.scaleLinear()
+                .domain([0, 7])
+                .range([0, 1]);
+
+                var color = d3.scaleLinear()
+                    .domain([0, step(1), step(2), step(3), step(4), step(5), step(6), 7])
+                    .range(["#006600", "#00b33c",
+                        "#53ff1a", "#ffff00",
+                        "#ff9900", "#ff6600", 
+                        "#e60000", "#ff0000"])
+
+                
+                svg.selectAll("rect")
+                    .data(varData)
+                    .enter()
+                    .append("rect")
+                    .attr("id", "bar")
+                    //                    .attr("x", 0)
+                    .attr("width", function(d, i) {
+                        if (varVals[i] == 0) {
+                            var found = false;
+                            var minVal = 0;
+                            while (!found) {
+                                for (c in countryDict) {
+                                    console.log(countryDict[c][varName[i]])
+                                    if (countryDict[c][varName[i]] != 0) {
+                                        console.log("here");
+                                        return xScale((1-countryDict[c][varName[i]])*100);
+                                    }
+                                }
+                                break;
+                            }
+                        }
+                        return xScale(d);
+                    })
+                    .attr("y", function(d, i) {
+                        return i * height/scaleLen;
+                    })
+                    .attr("height", barSize)
+                    .attr("fill", function(d, i) {
+                        if (varVals[i] != 0) {
+                            return color(d/100);
+                        }
+                        else {
+                            return "#a9b1bc";
+                        }
+                    })
+                    .attr("opacity", function(d, i) {
+                        if (varVals[i] == 0) {
+                            return 0.2;
+                        }
+                    });
+
+                svg.selectAll("text")
+                    .data(varData)
+                    .enter()
+                    .append("text")
+                    .attr("id", "bar_text")
+                    .text(function(d) {
+                        return d + "%";
+                    })
+                    .attr("text-anchor", "middle")
+                    .attr("x", function(d) {
+                        return xScale(d) - 18;
+                    })
+                    .attr("y", function(d, i) {
+                        return i * height/scaleLen + (height/scaleLen) / 2 + 4;
+                    })
+                    .attr("class", "barText");
+
+                svg.append("g")
+                    .attr("transform", "translate(0," + height + ")")
+                    .call(d3.axisBottom(xScale))
+                    .attr("class", "axis");
+
+                //add the y Axis
+                svg.append("g")
+                    .call(d3.axisLeft(yScale))
+                    .attr("class", "axis");
+
+                //variable for y coordinate of top bar
+                var top_bar = d3.min(varData, function(d, i) {return yScale(varName[i]); });
+
+                //tooltip dimensions and position
+                var tooltip = {x: xScale(d3.max(varData, function(d) { return d; })) + 10,
+                    width: 300,
+                    height: 300,
+                    corner: 3,
+                    duration: 750,
+                    format: d3.format(",d"),
+                    text: {margin_top: 10, margin_left: 10, size: 14, padding: 20}};
+
+                svg.append("rect")
+                    .attr("id", "alpha_bar")
+                    .data(varData)
+                    .attr("width", tooltip.x)
+                    .attr("y", function(d) {
+                        return yScale(d.country);
+                    })
+                    .attr("height", yScale.bandwidth())
+                    .attr("fill", "#FA4C00")
+                    .attr("class", "alphaBar");
+
+                svg.append("rect")
+                    .attr("id", "tooltip")
+                    .attr("width", tooltip.width)
+                    .attr("height", tooltip.height)
+    //                .attr("rx", tooltip.corner)
+    //                .attr("rx", tooltip.corner)
+                    .attr("fill", "#0d2a52")
+                    .attr("transform", function() {
+                        return "translate(" + tooltip.x + "," + 0 + ")";
+                    });
+
+                //text for first tooltip bar
+                svg.append("text")
+                    .attr("id", "bar_1_text_1")
+                    .text(varName[0] + ": " + varVals[0])
+                    .attr("x", tooltip.x + tooltip.text.margin_left)
+                    .attr("y", top_bar + tooltip.text.margin_top + (tooltip.text.size / 2))
+                    .attr("font-size", function() {
+                        return String(tooltip.text.size) + "px"
+                    })
+                    .attr("class", "tooltipText");
+
+                svg.append("text")
+                    .attr("id", "bar_description")
+                    .text(description_data[0][valName[0]])
+                    .attr("x", tooltip.x + tooltip.text.margin_left)
+                    .attr("y", top_bar + tooltip.text.margin_top + (tooltip.text.size / 2) + 20)
+                    .attr("font-size", function() {
+                        return String(tooltip.text.size) + "px"
+                    })
+                    .attr("class", "tooltipText");
+
+                
+
+                                
+
+                var remColor;
+                svg.selectAll("#bar")
+                    .on("mouseover", function(d, i) {
+                        remColor = d3.select(this).attr("fill");
+                        remOpac = d3.select(this).attr("opacity");
+                        d3.select(this)
+                            .attr("opacity", function() {
+                                if (remOpac == 1) {
+                                    return 0.2;
+                                }
+                                else {
+                                    return 0.5;
+                                }
+                            });
+                        //tooltip position
+                        var tool = {x: tooltip.x, y: this.y.animVal.value};
+
+                        // record which bar was clicked
+                        clicked = this;
+
+                        //change position of tooltip
+                        svg.selectAll("#tooltip")
+                            .transition()
+                            .duration(tooltip.duration)
+                            .attr("transform", function() {
+                                //if tooltip will fit within graph above x axis
+                                if (tool.y < height - tooltip.height) {
+                                    return "translate(" + tool.x + "," + tool.y + ")";
+                                } else {
+                                    return "translate(" + tool.x + "," + (tool.y - tooltip.height +
+                                        margin.top) + ")";
+    //                                    return "translate(" + tool.x + "," + (height - tooltip.height) + ")";
+                                }
+                            });
+                        //change transparent bar
+                        d3.select("#alpha_bar", "#pop_bar")
+                            .transition()
+                            .duration(tooltip.duration)
+                            .attr("y", tool.y)
+                            .attr("fill", remColor);
+
+                        svg.selectAll("#bar_1_text_1")
+                            .transition()
+                            .duration(tooltip.duration)
+                            .text(function() {
+                                if (varVals[i] == 1 || varVals[i] == 0) {
+                                    return "*" + valName[i] + ": " + varVals[i];
+                                }
+                                else {
+                                    return valName[i] + ": " + varVals[i];
+                                }
+                            })
+                            .attr("transform", function() {
+                                //if tooltip will fit within graph above x axis
+                                if (tool.y < height - tooltip.height) {
+                                    return "translate(" + 0 + "," + tool.y + ")";
+                                } else {
+                                    return "translate(" + 0 + "," + (tool.y - tooltip.height +
+                                        margin.top) + ")";
+                                }
+                            });
+
+                        svg.selectAll("#bar_description")
+                            .transition()
+                            .duration(tooltip.duration)
+                            .text(description_data[0][valName[i]])
+                            .attr("transform", function() {
+                                //if tooltip will fit within graph above x axis
+                                if (tool.y < height - tooltip.height) {
+                                    return "translate(" + 0 + "," + tool.y + ")";
+                                } else {
+                                    return "translate(" + 0 + "," + (tool.y - tooltip.height +
+                                        margin.top) + ")";
+                                }
+                            });
+
+                        
+
+                    })
+                    .on("mouseout", function() {
+                        d3.select(this)
+                            .attr("opacity", remOpac);
+                    });
+
+            }
+
+        }, 100);
+
+
+    }
+
+});
+
+
+</script>
+</body>
+</html>
